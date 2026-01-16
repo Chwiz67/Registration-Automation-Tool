@@ -93,10 +93,10 @@ def register_customers(df):
         options.add_argument("--disable-gpu")
         
         # For Streamlit Cloud (Linux)
-        options.binary_location = "/usr/bin/chromium-browser"
+        options.binary_location = "/usr/bin/chromium"
         
         driver = webdriver.Chrome(
-            service=Service(ChromeDriverManager().install()),
+            service=Service("/usr/bin/chromedriver"),
             options=options
         )
         wait = WebDriverWait(driver, 6)
