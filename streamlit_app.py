@@ -54,6 +54,9 @@ with col1:
         with st.expander("Preview data"):
             df = pd.read_excel(uploaded_file)
             st.dataframe(df.head(3), use_container_width=True)
+            
+            if len(df) > 3:
+                st.caption(f"... and {len(df) - 3} more rows ({len(df)} total)")
 
 with col2:
     st.subheader("Actions")
