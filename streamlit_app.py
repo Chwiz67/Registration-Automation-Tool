@@ -8,9 +8,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 import time
 
-# --- CONFIGURATION ---
-WEBINAR_URL = 'https://attendee.gotowebinar.com/register/5924573723423325789'
-
 # Page config
 st.set_page_config(
     page_title="Registration Automation",
@@ -41,6 +38,12 @@ st.divider()
 col1, col2 = st.columns([2, 1])
 
 with col1:
+    st.subheader("Registration URL")
+    webinar_url = st.text_input(
+        "Enter the registration page URL",
+        placeholder="https://example.com/register/..."
+    )
+    
     st.subheader("Select File")
     uploaded_file = st.file_uploader("Choose an Excel file", type=["xlsx", "xls"])
     
@@ -78,7 +81,7 @@ def add_log(message):
     with log_placeholder.container():
         st.code('\n'.join(st.session_state.logs), language='')
 
-def register_customers(df):
+def register_customers(df, webinar_url):
     """Main registration logic"""
     try:
         add_log("Loading Excel data...")
@@ -112,7 +115,7 @@ def register_customers(df):
                 
                 add_log(f"\n[{index + 1}/{len(df)}] Registering {first_name} {last_name}...")
                 
-                driver.get(WEBINAR_URL)
+                driver.get(webinar_url)
                 wait.until(EC.presence_of_element_located((By.ID, "registrant.firstName")))
                 
                 driver.find_element(By.ID, "registrant.firstName").send_keys(str(first_name))
@@ -139,7 +142,7 @@ def register_customers(df):
                 
                 submit_btn = driver.find_element(By.ID, "registration.submit.button")
                 submit_btn.click()
-                wait.until(EC.url_changes(WEBINAR_URL))
+                wait.until(EC.url_changes(webinar_url))
                 
                 add_log(f"  ✓ SUCCESS")
                 success_count += 1
@@ -169,6 +172,8 @@ def register_customers(df):
 if start_button:
     if not uploaded_file:
         st.error("Please upload an Excel file first")
+    elif not webinar_url or not webinar_url.startswith('http'):
+        st.error("Please enter a valid URL")
     else:
         st.session_state.running = True
         st.session_state.logs = []
@@ -176,7 +181,7 @@ if start_button:
         df = pd.read_excel(uploaded_file)
         
         # Run registration (logs update in real-time via add_log)
-        success, failed = register_customers(df)
+        success, failed = register_customers(df, webinar_url)
         
         # Display final metrics
         st.divider()
