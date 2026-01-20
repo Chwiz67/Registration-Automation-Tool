@@ -117,37 +117,62 @@ def register_customers(df, webinar_url):
                 last_name = row.get('Last Name', 'Unknown')
                 
                 add_log(f"\n[{index + 1}/{len(df)}] Registering {first_name} {last_name}...")
+                add_log(f"  Email: {email}")
                 
                 driver.get(webinar_url)
-                wait.until(EC.presence_of_element_located((By.ID, "registrant.firstName")))
+                
+                # Wait for form to be fully loaded and interactive
+                wait.until(EC.element_to_be_clickable((By.ID, "registrant.firstName")))
+                time.sleep(0.5)  # Extra wait for JS to initialize
+                add_log(f"  → Page loaded")
                 
                 driver.find_element(By.ID, "registrant.firstName").send_keys(str(first_name))
                 driver.find_element(By.ID, "registrant.lastName").send_keys(str(last_name))
                 driver.find_element(By.ID, "registrant.email").send_keys(str(email))
+                time.sleep(0.3)  # Let JS process basic fields
+                add_log(f"  → Filled: {first_name} {last_name} ({email})")
                 
                 driver.find_element(By.ID, "customQuestion0").send_keys(str(row.get("Your Organization Name", "")))
                 driver.find_element(By.ID, "customQuestion1").send_keys(str(row.get("Your Department", "")))
                 driver.find_element(By.ID, "customQuestion2").send_keys(str(row.get("Your Role/ Designation", "")))
                 driver.find_element(By.ID, "customQuestion4").send_keys(str(row.get("Your Point of Contact at Whatfix", "")))
                 driver.find_element(By.ID, "customQuestion5").send_keys(str(row.get("Name of the Base Application(s) on which you are using Whatfix", "")))
+                time.sleep(0.3)  # Let JS process custom fields
+                add_log(f"  → Filled custom fields")
                 
                 dropdown_value = str(row["Your Association with Whatfix"]).strip()
-                dropdown_trigger = driver.find_element(By.CSS_SELECTOR, ".custom-dropdown .dropdown-selected")
+                dropdown_trigger = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".custom-dropdown .dropdown-selected")))
                 dropdown_trigger.click()
                 
                 wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".custom-dropdown .dropdown-options li")))
+                time.sleep(0.2)  # Wait for dropdown animation
+                add_log(f"  → Dropdown opened")
                 
                 dropdown_options = driver.find_elements(By.CSS_SELECTOR, ".custom-dropdown .dropdown-options li")
+                selected = False
                 for option in dropdown_options:
                     if option.text.strip() == dropdown_value:
                         option.click()
+                        selected = True
                         break
                 
-                submit_btn = driver.find_element(By.ID, "registration.submit.button")
-                submit_btn.click()
-                wait.until(EC.url_changes(webinar_url))
+                if not selected:
+                    add_log(f"  ✗ FAILED: Dropdown value '{dropdown_value}' not found")
+                    failed_count += 1
+                    continue
                 
-                add_log(f"  ✓ SUCCESS")
+                add_log(f"  → Selected: {dropdown_value}")
+                time.sleep(0.3)  # Let dropdown value register
+                
+                submit_btn = wait.until(EC.element_to_be_clickable((By.ID, "registration.submit.button")))
+                submit_btn.click()
+                add_log(f"  → Submit clicked")
+                
+                wait.until(EC.url_changes(webinar_url))
+                current_url = driver.current_url
+                add_log(f"  → URL changed to: {current_url}")
+                
+                add_log(f"  ✓ REGISTRATION COMPLETE")
                 success_count += 1
                 
             except Exception as e:
