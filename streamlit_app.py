@@ -142,44 +142,38 @@ def register_customers(df, webinar_url):
                         
                         dropdown_value = str(row["Your Association with Whatfix"]).strip()
 
-                        # There can be multiple dropdowns now; find the one whose options contain the desired value
-                        dropdowns = driver.find_elements(By.CSS_SELECTOR, ".custom-dropdown .dropdown-selected")
-                        selected = False
-                        available_options = []
+                        # Target the specific dropdown under the label "Your Association with Whatfix"
+                        label_xpath = "//label[contains(normalize-space(), 'Your Association with Whatfix')]"
+                        dropdown_xpath = label_xpath + "/following::div[contains(@class,'custom-dropdown')][1]"
 
-                        for trigger in dropdowns:
-                            try:
-                                driver.execute_script("arguments[0].scrollIntoView(true);", trigger)
-                                time.sleep(0.1)
-                                trigger.click()
+                        try:
+                            dropdown = wait.until(EC.element_to_be_clickable((By.XPATH, dropdown_xpath + "/div[@class='dropdown-selected']")))
+                            driver.execute_script("arguments[0].scrollIntoView(true);", dropdown)
+                            time.sleep(0.1)
+                            dropdown.click()
 
-                                # Wait for this dropdown to open and options to render
-                                wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".custom-dropdown.open .dropdown-options")))
-                                time.sleep(0.3)
+                            # Wait for this dropdown to open and options to render
+                            wait.until(EC.presence_of_element_located((By.XPATH, dropdown_xpath + "[contains(@class,'open')]/ul[contains(@class,'dropdown-options')]") ))
+                            time.sleep(0.3)
 
-                                options = driver.find_elements(By.CSS_SELECTOR, ".custom-dropdown.open .dropdown-options li")
-                                option_texts = [opt.text.strip() for opt in options if opt.text.strip()]
-                                available_options = option_texts  # keep last seen for debugging
+                            options = driver.find_elements(By.XPATH, dropdown_xpath + "[contains(@class,'open')]/ul[contains(@class,'dropdown-options')]/li")
+                            option_texts = [opt.text.strip() for opt in options if opt.text.strip()]
 
-                                for opt in options:
-                                    text = opt.text.strip()
-                                    if text and text != "Choose One..." and text == dropdown_value:
-                                        driver.execute_script("arguments[0].scrollIntoView(true);", opt)
-                                        time.sleep(0.1)
-                                        opt.click()
-                                        selected = True
-                                        break
-
-                                # Close dropdown if not selected to move on to next
-                                if not selected:
-                                    driver.execute_script("arguments[0].click();", trigger)
-                                else:
+                            selected = False
+                            for opt in options:
+                                text = opt.text.strip()
+                                if text and text != "Choose One..." and text == dropdown_value:
+                                    driver.execute_script("arguments[0].scrollIntoView(true);", opt)
+                                    time.sleep(0.1)
+                                    opt.click()
+                                    selected = True
                                     break
-                            except Exception:
-                                continue
 
-                        if not selected:
-                            failure_reason = f"Dropdown value '{dropdown_value}' not found. Options seen: {available_options}"
+                            if not selected:
+                                failure_reason = f"Dropdown value '{dropdown_value}' not found. Options: {option_texts}"
+                                continue
+                        except Exception as e:
+                            failure_reason = f"Dropdown error: {str(e)}"
                             continue
                         
                         time.sleep(0.5)  # Let dropdown value register
