@@ -182,16 +182,39 @@ def register_customers(df, webinar_url):
                         
                         # Try JavaScript submit first (more reliable)
                         try:
-                            driver.execute_script("document.getElementById('registration.submit.button').click();")
+                            submit_btn_el = driver.find_element(By.ID, "registration.submit.button")
+                            driver.execute_script("arguments[0].scrollIntoView(true);", submit_btn_el)
+                            time.sleep(0.1)
+                            driver.execute_script("arguments[0].click();", submit_btn_el)
                         except:
                             # Fallback to regular click
                             submit_btn = wait.until(EC.element_to_be_clickable((By.ID, "registration.submit.button")))
+                            driver.execute_script("arguments[0].scrollIntoView(true);", submit_btn)
+                            time.sleep(0.1)
                             submit_btn.click()
-                        
-                        # Wait for URL to change
-                        time.sleep(2)  # Give page more time to redirect
+
+                        # Wait for URL to change or surface validation errors
+                        max_wait_seconds = 8
+                        poll_interval = 0.5
+                        elapsed = 0
+                        error_messages = []
                         current_url = driver.current_url
-                        
+
+                        while elapsed < max_wait_seconds:
+                            time.sleep(poll_interval)
+                            elapsed += poll_interval
+                            current_url = driver.current_url
+                            if current_url != initial_url:
+                                break
+                            # Collect visible validation/help messages if present
+                            try:
+                                help_blocks = driver.find_elements(By.CSS_SELECTOR, ".help-block, .has-error .help-block, .has-error span")
+                                error_messages = [hb.text.strip() for hb in help_blocks if hb.is_displayed() and hb.text.strip()]
+                                if error_messages:
+                                    break
+                            except Exception:
+                                pass
+
                         if current_url != initial_url:
                             if "registrationDenied" in current_url:
                                 failure_reason = f"Registration denied by website (attempt {attempt}/2)"
@@ -200,7 +223,10 @@ def register_customers(df, webinar_url):
                                 registration_success = True
                                 break
                         else:
-                            failure_reason = f"URL did not change (attempt {attempt}/2)"
+                            if error_messages:
+                                failure_reason = f"URL did not change (attempt {attempt}/2). Page errors: {error_messages}"
+                            else:
+                                failure_reason = f"URL did not change (attempt {attempt}/2). No visible errors; likely slow page"
                     
                     except Exception as e:
                         failure_reason = f"{str(e)} (attempt {attempt}/2)"
