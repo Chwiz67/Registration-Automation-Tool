@@ -119,66 +119,88 @@ def register_customers(df, webinar_url):
                 add_log(f"\n[{index + 1}/{len(df)}] Registering {first_name} {last_name}...")
                 add_log(f"  Email: {email}")
                 
-                driver.get(webinar_url)
+                registration_success = False
+                attempt = 0
                 
-                # Wait for form to be fully loaded and interactive
-                wait.until(EC.element_to_be_clickable((By.ID, "registrant.firstName")))
-                time.sleep(0.5)  # Extra wait for JS to initialize
-                add_log(f"  → Page loaded")
+                while attempt < 2 and not registration_success:
+                    attempt += 1
+                    if attempt > 1:
+                        add_log(f"  → Retrying (attempt {attempt}/2)...")
+                    
+                    try:
+                        driver.get(webinar_url)
+                        
+                        # Wait for form to be fully loaded and interactive
+                        wait.until(EC.element_to_be_clickable((By.ID, "registrant.firstName")))
+                        time.sleep(0.5)  # Extra wait for JS to initialize
+                        add_log(f"  → Page loaded")
+                        
+                        driver.find_element(By.ID, "registrant.firstName").send_keys(str(first_name))
+                        driver.find_element(By.ID, "registrant.lastName").send_keys(str(last_name))
+                        driver.find_element(By.ID, "registrant.email").send_keys(str(email))
+                        time.sleep(0.3)  # Let JS process basic fields
+                        add_log(f"  → Filled: {first_name} {last_name} ({email})")
+                        
+                        driver.find_element(By.ID, "customQuestion0").send_keys(str(row.get("Your Organization Name", "")))
+                        driver.find_element(By.ID, "customQuestion1").send_keys(str(row.get("Your Department", "")))
+                        driver.find_element(By.ID, "customQuestion2").send_keys(str(row.get("Your Role/ Designation", "")))
+                        driver.find_element(By.ID, "customQuestion4").send_keys(str(row.get("Your Point of Contact at Whatfix", "")))
+                        driver.find_element(By.ID, "customQuestion5").send_keys(str(row.get("Name of the Base Application(s) on which you are using Whatfix", "")))
+                        time.sleep(0.3)  # Let JS process custom fields
+                        add_log(f"  → Filled custom fields")
+                        
+                        dropdown_value = str(row["Your Association with Whatfix"]).strip()
+                        dropdown_trigger = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".custom-dropdown .dropdown-selected")))
+                        dropdown_trigger.click()
+                        
+                        wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".custom-dropdown .dropdown-options li")))
+                        time.sleep(0.2)  # Wait for dropdown animation
+                        add_log(f"  → Dropdown opened")
+                        
+                        dropdown_options = driver.find_elements(By.CSS_SELECTOR, ".custom-dropdown .dropdown-options li")
+                        selected = False
+                        for option in dropdown_options:
+                            if option.text.strip() == dropdown_value:
+                                option.click()
+                                selected = True
+                                break
+                        
+                        if not selected:
+                            add_log(f"  ✗ Dropdown value '{dropdown_value}' not found")
+                            continue
+                        
+                        add_log(f"  → Selected: {dropdown_value}")
+                        time.sleep(0.5)  # Let dropdown value register
+                        
+                        initial_url = driver.current_url
+                        
+                        # Try JavaScript submit first (more reliable)
+                        try:
+                            driver.execute_script("document.getElementById('registration.submit.button').click();")
+                            add_log(f"  → Submit clicked (JavaScript)")
+                        except:
+                            # Fallback to regular click
+                            submit_btn = wait.until(EC.element_to_be_clickable((By.ID, "registration.submit.button")))
+                            submit_btn.click()
+                            add_log(f"  → Submit clicked (Selenium)")
+                        
+                        # Wait for URL to change
+                        time.sleep(2)  # Give page more time to redirect
+                        current_url = driver.current_url
+                        
+                        if current_url != initial_url:
+                            add_log(f"  ✓ URL changed to: {current_url}")
+                            add_log(f"  ✓ REGISTRATION COMPLETE")
+                            registration_success = True
+                            success_count += 1
+                        else:
+                            add_log(f"  ✗ URL did not change (attempt {attempt}/2)")
+                    
+                    except Exception as e:
+                        add_log(f"  ✗ Error (attempt {attempt}/2): {str(e)}")
                 
-                driver.find_element(By.ID, "registrant.firstName").send_keys(str(first_name))
-                driver.find_element(By.ID, "registrant.lastName").send_keys(str(last_name))
-                driver.find_element(By.ID, "registrant.email").send_keys(str(email))
-                time.sleep(0.3)  # Let JS process basic fields
-                add_log(f"  → Filled: {first_name} {last_name} ({email})")
-                
-                driver.find_element(By.ID, "customQuestion0").send_keys(str(row.get("Your Organization Name", "")))
-                driver.find_element(By.ID, "customQuestion1").send_keys(str(row.get("Your Department", "")))
-                driver.find_element(By.ID, "customQuestion2").send_keys(str(row.get("Your Role/ Designation", "")))
-                driver.find_element(By.ID, "customQuestion4").send_keys(str(row.get("Your Point of Contact at Whatfix", "")))
-                driver.find_element(By.ID, "customQuestion5").send_keys(str(row.get("Name of the Base Application(s) on which you are using Whatfix", "")))
-                time.sleep(0.3)  # Let JS process custom fields
-                add_log(f"  → Filled custom fields")
-                
-                dropdown_value = str(row["Your Association with Whatfix"]).strip()
-                dropdown_trigger = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".custom-dropdown .dropdown-selected")))
-                dropdown_trigger.click()
-                
-                wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".custom-dropdown .dropdown-options li")))
-                time.sleep(0.2)  # Wait for dropdown animation
-                add_log(f"  → Dropdown opened")
-                
-                dropdown_options = driver.find_elements(By.CSS_SELECTOR, ".custom-dropdown .dropdown-options li")
-                selected = False
-                for option in dropdown_options:
-                    if option.text.strip() == dropdown_value:
-                        option.click()
-                        selected = True
-                        break
-                
-                if not selected:
-                    add_log(f"  ✗ FAILED: Dropdown value '{dropdown_value}' not found")
-                    failed_count += 1
-                    continue
-                
-                add_log(f"  → Selected: {dropdown_value}")
-                time.sleep(0.3)  # Let dropdown value register
-                
-                initial_url = driver.current_url
-                submit_btn = wait.until(EC.element_to_be_clickable((By.ID, "registration.submit.button")))
-                submit_btn.click()
-                add_log(f"  → Submit clicked")
-                
-                # Wait for URL to change
-                time.sleep(1)  # Give page time to redirect
-                current_url = driver.current_url
-                
-                if current_url != initial_url:
-                    add_log(f"  ✓ URL changed to: {current_url}")
-                    add_log(f"  ✓ REGISTRATION COMPLETE")
-                    success_count += 1
-                else:
-                    add_log(f"  ✗ FAILED: URL did not change (submit button didn't work)")
+                if not registration_success:
+                    add_log(f"  ✗ FAILED after 2 attempts")
                     failed_count += 1
                 
             except Exception as e:
