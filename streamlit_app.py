@@ -144,13 +144,16 @@ def register_customers(df, webinar_url):
                         dropdown_trigger = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".custom-dropdown .dropdown-selected")))
                         dropdown_trigger.click()
                         
+                        # Wait longer for dropdown to open and populate
+                        time.sleep(0.5)
                         wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".custom-dropdown .dropdown-options li")))
-                        time.sleep(0.2)  # Wait for dropdown animation
                         
                         dropdown_options = driver.find_elements(By.CSS_SELECTOR, ".custom-dropdown .dropdown-options li")
                         selected = False
                         for option in dropdown_options:
-                            if option.text.strip() == dropdown_value:
+                            option_text = option.text.strip()
+                            # Skip the placeholder "Choose One..."
+                            if option_text and option_text != "Choose One..." and option_text == dropdown_value:
                                 option.click()
                                 selected = True
                                 break
