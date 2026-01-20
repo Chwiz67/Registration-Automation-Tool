@@ -141,25 +141,45 @@ def register_customers(df, webinar_url):
                         time.sleep(0.3)  # Let JS process custom fields
                         
                         dropdown_value = str(row["Your Association with Whatfix"]).strip()
-                        dropdown_trigger = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".custom-dropdown .dropdown-selected")))
-                        dropdown_trigger.click()
-                        
-                        # Wait longer for dropdown to open and populate
-                        time.sleep(0.5)
-                        wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, ".custom-dropdown .dropdown-options li")))
-                        
-                        dropdown_options = driver.find_elements(By.CSS_SELECTOR, ".custom-dropdown .dropdown-options li")
+
+                        # There can be multiple dropdowns now; find the one whose options contain the desired value
+                        dropdowns = driver.find_elements(By.CSS_SELECTOR, ".custom-dropdown .dropdown-selected")
                         selected = False
-                        for option in dropdown_options:
-                            option_text = option.text.strip()
-                            # Skip the placeholder "Choose One..."
-                            if option_text and option_text != "Choose One..." and option_text == dropdown_value:
-                                option.click()
-                                selected = True
-                                break
-                        
+                        available_options = []
+
+                        for trigger in dropdowns:
+                            try:
+                                driver.execute_script("arguments[0].scrollIntoView(true);", trigger)
+                                time.sleep(0.1)
+                                trigger.click()
+
+                                # Wait for this dropdown to open and options to render
+                                wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".custom-dropdown.open .dropdown-options")))
+                                time.sleep(0.3)
+
+                                options = driver.find_elements(By.CSS_SELECTOR, ".custom-dropdown.open .dropdown-options li")
+                                option_texts = [opt.text.strip() for opt in options if opt.text.strip()]
+                                available_options = option_texts  # keep last seen for debugging
+
+                                for opt in options:
+                                    text = opt.text.strip()
+                                    if text and text != "Choose One..." and text == dropdown_value:
+                                        driver.execute_script("arguments[0].scrollIntoView(true);", opt)
+                                        time.sleep(0.1)
+                                        opt.click()
+                                        selected = True
+                                        break
+
+                                # Close dropdown if not selected to move on to next
+                                if not selected:
+                                    driver.execute_script("arguments[0].click();", trigger)
+                                else:
+                                    break
+                            except Exception:
+                                continue
+
                         if not selected:
-                            failure_reason = f"Dropdown value '{dropdown_value}' not found"
+                            failure_reason = f"Dropdown value '{dropdown_value}' not found. Options seen: {available_options}"
                             continue
                         
                         time.sleep(0.5)  # Let dropdown value register
