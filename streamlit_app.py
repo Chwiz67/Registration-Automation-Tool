@@ -164,16 +164,22 @@ def register_customers(df, webinar_url):
                 add_log(f"  → Selected: {dropdown_value}")
                 time.sleep(0.3)  # Let dropdown value register
                 
+                initial_url = driver.current_url
                 submit_btn = wait.until(EC.element_to_be_clickable((By.ID, "registration.submit.button")))
                 submit_btn.click()
                 add_log(f"  → Submit clicked")
                 
-                wait.until(EC.url_changes(webinar_url))
+                # Wait for URL to change
+                time.sleep(1)  # Give page time to redirect
                 current_url = driver.current_url
-                add_log(f"  → URL changed to: {current_url}")
                 
-                add_log(f"  ✓ REGISTRATION COMPLETE")
-                success_count += 1
+                if current_url != initial_url:
+                    add_log(f"  ✓ URL changed to: {current_url}")
+                    add_log(f"  ✓ REGISTRATION COMPLETE")
+                    success_count += 1
+                else:
+                    add_log(f"  ✗ FAILED: URL did not change (submit button didn't work)")
+                    failed_count += 1
                 
             except Exception as e:
                 add_log(f"  ✗ FAILED: {str(e)}")
