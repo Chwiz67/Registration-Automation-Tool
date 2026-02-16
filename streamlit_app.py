@@ -128,16 +128,38 @@ def register_customers(df, webinar_url):
                         wait.until(EC.element_to_be_clickable((By.ID, "registrant.firstName")))
                         time.sleep(0.5)  # Extra wait for JS to initialize
                         
-                        driver.find_element(By.ID, "registrant.firstName").send_keys(str(first_name))
-                        driver.find_element(By.ID, "registrant.lastName").send_keys(str(last_name))
-                        driver.find_element(By.ID, "registrant.email").send_keys(str(email))
+                        first_name_el = driver.find_element(By.ID, "registrant.firstName")
+                        first_name_el.clear()
+                        first_name_el.send_keys(str(first_name))
+
+                        last_name_el = driver.find_element(By.ID, "registrant.lastName")
+                        last_name_el.clear()
+                        last_name_el.send_keys(str(last_name))
+
+                        email_el = driver.find_element(By.ID, "registrant.email")
+                        email_el.clear()
+                        email_el.send_keys(str(email))
                         time.sleep(0.3)  # Let JS process basic fields
                         
-                        driver.find_element(By.ID, "customQuestion0").send_keys(str(row.get("Your Organization Name", "")))
-                        driver.find_element(By.ID, "customQuestion1").send_keys(str(row.get("Your Department", "")))
-                        driver.find_element(By.ID, "customQuestion2").send_keys(str(row.get("Your Role/ Designation", "")))
-                        driver.find_element(By.ID, "customQuestion4").send_keys(str(row.get("Your Point of Contact at Whatfix", "")))
-                        driver.find_element(By.ID, "customQuestion5").send_keys(str(row.get("Name of the Base Application(s) on which you are using Whatfix", "")))
+                        org_el = driver.find_element(By.ID, "customQuestion0")
+                        org_el.clear()
+                        org_el.send_keys(str(row.get("Your Organization Name", "")))
+
+                        dept_el = driver.find_element(By.ID, "customQuestion1")
+                        dept_el.clear()
+                        dept_el.send_keys(str(row.get("Your Department", "")))
+
+                        role_el = driver.find_element(By.ID, "customQuestion2")
+                        role_el.clear()
+                        role_el.send_keys(str(row.get("Your Role/ Designation", "")))
+
+                        poc_el = driver.find_element(By.ID, "customQuestion4")
+                        poc_el.clear()
+                        poc_el.send_keys(str(row.get("Your Point of Contact at Whatfix", "")))
+
+                        base_app_el = driver.find_element(By.ID, "customQuestion5")
+                        base_app_el.clear()
+                        base_app_el.send_keys(str(row.get("Name of the Base Application(s) on which you are using Whatfix", "")))
                         time.sleep(0.3)  # Let JS process custom fields
                         
                         dropdown_value = str(row["Your Association with Whatfix"]).strip()
